@@ -18,13 +18,18 @@ import com.music.instrument.domain.Student;
 import com.music.instrument.dto.BatchEnrollRequest;
 import com.music.instrument.dto.EnrollmentCreateRequest;
 import com.music.instrument.dto.view.CourseDetailView;
+import com.music.instrument.dto.view.CoursePathView;
 import com.music.instrument.dto.view.EnrollmentView;
+import com.music.instrument.dto.view.StudentPathBundleView;
 import com.music.instrument.mapper.EnrollmentMapper;
 import com.music.instrument.mapper.LessonCourseMapper;
 import com.music.instrument.mapper.StudentMapper;
+import com.music.instrument.service.path.CoursePathService;
 
 /**
  * 学员与课程：课时余额门槛、满员拦截、未购课禁约、同课不重复约。
+ * 先修路径（可学 / 受阻 / 最短缺口）统一由 {@link CoursePathService} 解析，
+ * 单个约课与一键多科报名复用同一判定，批量课程不能在同批里互相充当已完成先修。
  */
 @Service
 public class CourseService {
@@ -32,13 +37,16 @@ public class CourseService {
     private final StudentMapper studentMapper;
     private final LessonCourseMapper lessonCourseMapper;
     private final EnrollmentMapper enrollmentMapper;
+    private final CoursePathService coursePathService;
 
     public CourseService(StudentMapper studentMapper,
                          LessonCourseMapper lessonCourseMapper,
-                         EnrollmentMapper enrollmentMapper) {
+                         EnrollmentMapper enrollmentMapper,
+                         CoursePathService coursePathService) {
         this.studentMapper = studentMapper;
         this.lessonCourseMapper = lessonCourseMapper;
         this.enrollmentMapper = enrollmentMapper;
+        this.coursePathService = coursePathService;
     }
 
     public Map<String, Object> options() {
@@ -61,6 +69,16 @@ public class CourseService {
             decorate(view);
         }
         return views;
+    }
+
+    /** 学员的全部课程路径（整图一次解析，查询次数为常数）。 */
+    public StudentPathBundleView studentPaths(Long studentId) {
+        return coursePathService.pathsForStudent(studentId);
+    }
+
+    /** 单门课程的学员路径：与列表结论同源，刷新后完全一致。 */
+    public CoursePathView coursePath(Long studentId, Long courseId) {
+        return coursePathService.pathForCourse(studentId, courseId);
     }
 
     /**
@@ -113,6 +131,8 @@ public class CourseService {
         checkCourseNotFull(course);
         checkBalance(student, lessons);
         checkNotDuplicated(student, course);
+        // 先修路径守卫：只有 COMPLETED 记录可解锁，旧状态 / 在学 / 取消均不满足
+        coursePathService.guardEnroll(student, List.of(course));
 
         LocalDate enrollDate = request.getEnrollDate() == null ? LocalDate.now() : request.getEnrollDate();
         Enrollment enrollment = new Enrollment();
@@ -120,8 +140,8 @@ public class CourseService {
         enrollment.setCourseId(course.getId());
         enrollment.setEnrollDate(enrollDate);
         enrollment.setLessons(lessons);
-        // 默认值只在 service 里落地
-        enrollment.setStatus("NORMAL");
+        // 新约课记录落「正在学习」；旧 NORMAL 仅用于历史展示，不再作为新记录默认值
+        enrollment.setStatus("LEARNING");
         enrollment.setCreatedAt(LocalDateTime.now());
         enrollmentMapper.insert(enrollment);
 
@@ -176,6 +196,8 @@ public class CourseService {
             checkCourseNotFull(course);
             checkNotDuplicated(student, course);
         }
+        // 先修守卫只读库里既有的 COMPLETED 记录：本批课程即使在列表里也不会互相解锁
+        coursePathService.guardEnroll(student, courses);
 
         int totalLessons = lessons * courses.size();
         checkBalance(student, totalLessons);
@@ -189,7 +211,7 @@ public class CourseService {
             enrollment.setCourseId(course.getId());
             enrollment.setEnrollDate(enrollDate);
             enrollment.setLessons(lessons);
-            enrollment.setStatus("NORMAL");
+            enrollment.setStatus("LEARNING");
             enrollment.setCreatedAt(now);
             batch.add(enrollment);
         }

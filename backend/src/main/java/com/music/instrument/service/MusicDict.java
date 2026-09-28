@@ -143,8 +143,13 @@ public final class MusicDict {
     private static final Map<String, String> ENROLLMENT_STATUS = new LinkedHashMap<>();
 
     static {
-        ENROLLMENT_STATUS.put("NORMAL", "正常");
+        // COMPLETED 是唯一能解锁后续课程的状态；NORMAL 为路径模块上线前的旧约课记录，
+        // NULL（UNKNOWN）为历史状态缺失：两者照常展示，但绝不自动视为已完成。
+        ENROLLMENT_STATUS.put("COMPLETED", "已完成");
+        ENROLLMENT_STATUS.put("LEARNING", "正在学习");
+        ENROLLMENT_STATUS.put("NORMAL", "正常（旧记录）");
         ENROLLMENT_STATUS.put("CANCELED", "已退课");
+        ENROLLMENT_STATUS.put("UNKNOWN", "状态缺失");
     }
 
     /** 一键多科报名时，每门课默认消耗的课时 */
@@ -275,7 +280,10 @@ public final class MusicDict {
     }
 
     public static String enrollmentStatusName(String status) {
-        return status == null ? "" : ENROLLMENT_STATUS.getOrDefault(status, status);
+        if (status == null || status.isBlank()) {
+            return "状态缺失";
+        }
+        return ENROLLMENT_STATUS.getOrDefault(status, status);
     }
 
     /** 供前端下拉直接使用的选项列表 */

@@ -19,6 +19,9 @@ public interface EnrollmentMapper {
 
     List<Enrollment> listByCourseId(@Param("courseId") Long courseId);
 
+    /** 某学员的全部学习记录（含指向已删除课程的孤儿记录），路径解析一次取全。 */
+    List<Enrollment> listByStudentId(@Param("studentId") Long studentId);
+
     int countByStudentAndCourse(@Param("studentId") Long studentId,
                                 @Param("courseId") Long courseId);
 

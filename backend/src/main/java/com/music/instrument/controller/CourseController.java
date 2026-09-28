@@ -17,7 +17,9 @@ import com.music.instrument.domain.Student;
 import com.music.instrument.dto.BatchEnrollRequest;
 import com.music.instrument.dto.EnrollmentCreateRequest;
 import com.music.instrument.dto.view.CourseDetailView;
+import com.music.instrument.dto.view.CoursePathView;
 import com.music.instrument.dto.view.EnrollmentView;
+import com.music.instrument.dto.view.StudentPathBundleView;
 import com.music.instrument.service.CourseService;
 
 /**
@@ -58,6 +60,19 @@ public class CourseController {
     public ApiResponse<List<EnrollmentView>> enrollments(@RequestParam(required = false) Long studentId,
                                                          @RequestParam(required = false) Long courseId) {
         return ApiResponse.success(courseService.listEnrollments(studentId, courseId));
+    }
+
+    /** 学员课程路径：一次给出该学员在全部课程上的可学/受阻结论与最短缺口路径（常数次查询）。 */
+    @GetMapping("/students/{id}/course-paths")
+    public ApiResponse<StudentPathBundleView> studentPaths(@PathVariable Long id) {
+        return ApiResponse.success(courseService.studentPaths(id));
+    }
+
+    /** 单门课程路径：课程详情页与列表共用同一解析，刷新后结论一致。 */
+    @GetMapping("/students/{studentId}/course-paths/{courseId}")
+    public ApiResponse<CoursePathView> coursePath(@PathVariable Long studentId,
+                                                  @PathVariable Long courseId) {
+        return ApiResponse.success(courseService.coursePath(studentId, courseId));
     }
 
     @PostMapping("/enrollments")

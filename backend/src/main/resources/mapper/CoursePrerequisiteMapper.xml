@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.music.instrument.mapper.CoursePrerequisiteMapper">
+
+    <!-- 一次取全量关系：课程路径在内存里建图解析，查询次数不随课程数量、依赖深度变化 -->
+    <select id="findAll" resultType="com.music.instrument.domain.CoursePrerequisite">
+        SELECT
+            id           AS id,
+            course_id    AS courseId,
+            prereq_id    AS prereqId,
+            require_type AS requireType,
+            group_no     AS groupNo,
+            created_at   AS createdAt
+        FROM course_prerequisite
+        ORDER BY course_id ASC, group_no ASC, prereq_id ASC
+    </select>
+
+</mapper>

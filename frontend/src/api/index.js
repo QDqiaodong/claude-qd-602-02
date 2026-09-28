@@ -80,6 +80,13 @@ export const courseApi = {
   courses: () => http.get('/courses'),
   courseDetail: (id) => http.get(`/courses/${id}/detail`),
   enrollments: (params) => http.get('/enrollments', { params: clean(params) }),
+  // 学员课程路径：一次解析该学员全部课程的先修路径（整图批量，常数次查询）
+  studentPaths: (id, probe = false) => {
+    const params = probe ? { sqlProbe: 1 } : undefined
+    return http.get(`/students/${id}/course-paths`, { params })
+  },
+  // 单门课程路径：与列表同源，详情/刷新结论一致
+  coursePath: (studentId, courseId) => http.get(`/students/${studentId}/course-paths/${courseId}`),
   enroll: (data) => http.post('/enrollments', data),
   batchEnroll: (data) => http.post('/enrollments/batch', data)
 }
