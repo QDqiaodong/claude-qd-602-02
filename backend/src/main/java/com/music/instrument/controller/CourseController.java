@@ -17,6 +17,7 @@ import com.music.instrument.domain.Student;
 import com.music.instrument.dto.BatchEnrollRequest;
 import com.music.instrument.dto.EnrollmentCreateRequest;
 import com.music.instrument.dto.view.CourseDetailView;
+import com.music.instrument.dto.view.CoursePathView;
 import com.music.instrument.dto.view.EnrollmentView;
 import com.music.instrument.service.CourseService;
 
@@ -44,14 +45,28 @@ public class CourseController {
     }
 
     @GetMapping("/courses")
-    public ApiResponse<List<LessonCourse>> courses() {
-        return ApiResponse.success(courseService.listCourses());
+    public ApiResponse<List<LessonCourse>> courses(@RequestParam(required = false) Long studentId) {
+        return ApiResponse.success(courseService.listCourses(studentId));
     }
 
-    /** 课程行内展开：已报名学员名单 */
+    /** 某学员的全部课程路径：可学/受阻/循环 + 最短缺口路径（批量读取，查询次数恒定）。 */
+    @GetMapping("/courses/paths")
+    public ApiResponse<List<CoursePathView>> coursePaths(@RequestParam Long studentId) {
+        return ApiResponse.success(courseService.listPaths(studentId));
+    }
+
+    /** 单门课程的学员路径 */
+    @GetMapping("/courses/{id}/path")
+    public ApiResponse<CoursePathView> coursePath(@PathVariable Long id,
+                                                  @RequestParam Long studentId) {
+        return ApiResponse.success(courseService.coursePath(studentId, id));
+    }
+
+    /** 课程行内展开：已报名学员名单；带 studentId 时同时返回该学员路径结论 */
     @GetMapping("/courses/{id}/detail")
-    public ApiResponse<CourseDetailView> courseDetail(@PathVariable Long id) {
-        return ApiResponse.success(courseService.courseDetail(id));
+    public ApiResponse<CourseDetailView> courseDetail(@PathVariable Long id,
+                                                      @RequestParam(required = false) Long studentId) {
+        return ApiResponse.success(courseService.courseDetail(id, studentId));
     }
 
     @GetMapping("/enrollments")

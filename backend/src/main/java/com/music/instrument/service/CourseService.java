@@ -18,6 +18,7 @@ import com.music.instrument.domain.Student;
 import com.music.instrument.dto.BatchEnrollRequest;
 import com.music.instrument.dto.EnrollmentCreateRequest;
 import com.music.instrument.dto.view.CourseDetailView;
+import com.music.instrument.dto.view.CoursePathView;
 import com.music.instrument.dto.view.EnrollmentView;
 import com.music.instrument.mapper.EnrollmentMapper;
 import com.music.instrument.mapper.LessonCourseMapper;
@@ -25,6 +26,7 @@ import com.music.instrument.mapper.StudentMapper;
 
 /**
  * 学员与课程：课时余额门槛、满员拦截、未购课禁约、同课不重复约。
+ * 先修路径判定全部委托 {@link CoursePathService}：列表/详情/单个约课/批量约课同一口径。
  */
 @Service
 public class CourseService {
@@ -32,19 +34,23 @@ public class CourseService {
     private final StudentMapper studentMapper;
     private final LessonCourseMapper lessonCourseMapper;
     private final EnrollmentMapper enrollmentMapper;
+    private final CoursePathService coursePathService;
 
     public CourseService(StudentMapper studentMapper,
                          LessonCourseMapper lessonCourseMapper,
-                         EnrollmentMapper enrollmentMapper) {
+                         EnrollmentMapper enrollmentMapper,
+                         CoursePathService coursePathService) {
         this.studentMapper = studentMapper;
         this.lessonCourseMapper = lessonCourseMapper;
         this.enrollmentMapper = enrollmentMapper;
+        this.coursePathService = coursePathService;
     }
 
     public Map<String, Object> options() {
         return Map.of(
                 "courseStatuses", MusicDict.courseStatusOptions(),
-                "studentLevels", MusicDict.studentLevelOptions());
+                "studentLevels", MusicDict.studentLevelOptions(),
+                "prereqMatchModes", MusicDict.prereqMatchModeOptions());
     }
 
     public List<Student> listStudents() {
@@ -53,6 +59,37 @@ public class CourseService {
 
     public List<LessonCourse> listCourses() {
         return lessonCourseMapper.findAll();
+    }
+
+    /**
+     * 课程列表：指定学员时，每门课内嵌该学员的路径结论（可学/受阻/循环 + 最短缺口路径）。
+     * 关系与学习记录批量读取，一次解析全部课程，查询次数恒定（课程只读一次）。
+     */
+    public List<LessonCourse> listCourses(Long studentId) {
+        List<LessonCourse> courses = lessonCourseMapper.findAll();
+        if (studentId == null) {
+            return courses;
+        }
+        List<CoursePathView> paths = coursePathService.resolveAll(studentId, courses);
+        for (CoursePathView path : paths) {
+            for (LessonCourse course : courses) {
+                if (course.getId().equals(path.getCourseId())) {
+                    course.setPath(path);
+                    break;
+                }
+            }
+        }
+        return courses;
+    }
+
+    /** 某学员全部课程路径：列表结论的数据来源（4 条查询，规模恒定）。 */
+    public List<CoursePathView> listPaths(Long studentId) {
+        return coursePathService.resolveAll(studentId);
+    }
+
+    /** 单门课程的学员路径：课程详情与单查共用。 */
+    public CoursePathView coursePath(Long studentId, Long courseId) {
+        return coursePathService.resolve(studentId, courseId);
     }
 
     public List<EnrollmentView> listEnrollments(Long studentId, Long courseId) {
@@ -65,8 +102,9 @@ public class CourseService {
 
     /**
      * 课程行内展开详情：课程本身 + 已报名学员名单（用 <foreach> 批量取学员）。
+     * 指定 studentId 时同时内嵌该学员对这门课的路径结论，与列表/单查同一解析。
      */
-    public CourseDetailView courseDetail(Long courseId) {
+    public CourseDetailView courseDetail(Long courseId, Long studentId) {
         if (courseId == null) {
             throw new BizException("请指定要展开的课程");
         }
@@ -81,6 +119,9 @@ public class CourseService {
         view.setCourse(course);
         view.setStudents(studentIds.isEmpty() ? List.of() : studentMapper.findByIds(studentIds));
         view.setRemainSeats(Math.max(0, course.getCapacity() - course.getEnrolledCount()));
+        if (studentId != null) {
+            view.setPath(coursePathService.resolve(studentId, courseId));
+        }
         return view;
     }
 
@@ -113,6 +154,8 @@ public class CourseService {
         checkCourseNotFull(course);
         checkBalance(student, lessons);
         checkNotDuplicated(student, course);
+        // 先修闸门：单个/批量同一判定（单个没有同批课程）
+        coursePathService.assertEnrollable(student.getId(), List.of(course.getId()), Set.of());
 
         LocalDate enrollDate = request.getEnrollDate() == null ? LocalDate.now() : request.getEnrollDate();
         Enrollment enrollment = new Enrollment();
@@ -176,6 +219,8 @@ public class CourseService {
             checkCourseNotFull(course);
             checkNotDuplicated(student, course);
         }
+        // 先修闸门与单个约课同一判定；本批选中的课程全部视为未完成，不能互相充当已完成先修
+        coursePathService.assertEnrollable(student.getId(), courseIds, new LinkedHashSet<>(courseIds));
 
         int totalLessons = lessons * courses.size();
         checkBalance(student, totalLessons);
@@ -236,7 +281,9 @@ public class CourseService {
     }
 
     private void decorate(EnrollmentView view) {
-        view.setStatusName(MusicDict.enrollmentStatusName(view.getStatus()));
+        // 历史旧记录 status 可能为 NULL：照常展示为「状态缺失」，但绝不按已完成处理
+        view.setStatusName(view.getStatus() == null
+                ? "状态缺失" : MusicDict.enrollmentStatusName(view.getStatus()));
         view.setStudentLevel(MusicDict.studentLevelName(view.getStudentLevel()));
         view.setCourseCategory(MusicDict.categoryName(view.getCourseCategory()));
     }

@@ -52,6 +52,20 @@
         <include refid="enrollmentOrderBy"/>
     </select>
 
+    <!-- 路径解析专用：原始记录，status 为 NULL 时 MyBatis 映射为 null（历史状态缺失） -->
+    <select id="listPlainByStudentId" resultType="com.music.instrument.domain.Enrollment">
+        SELECT id, student_id AS studentId, course_id AS courseId, enroll_date AS enrollDate,
+               lessons, status, created_at AS createdAt
+        FROM enrollment
+        WHERE student_id = #{studentId}
+    </select>
+
+    <select id="listAllPlain" resultType="com.music.instrument.domain.Enrollment">
+        SELECT id, student_id AS studentId, course_id AS courseId, enroll_date AS enrollDate,
+               lessons, status, created_at AS createdAt
+        FROM enrollment
+    </select>
+
     <select id="countByStudentAndCourse" resultType="int">
         SELECT COUNT(1)
         FROM enrollment

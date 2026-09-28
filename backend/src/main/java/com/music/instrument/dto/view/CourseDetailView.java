@@ -14,6 +14,9 @@ public class CourseDetailView {
     private List<Student> students;
     private Integer remainSeats;
 
+    /** 指定学员时内嵌的该学员路径结论（与列表、单查完全同口径）。 */
+    private CoursePathView path;
+
     public LessonCourse getCourse() {
         return course;
     }
@@ -36,5 +39,13 @@ public class CourseDetailView {
 
     public void setRemainSeats(Integer remainSeats) {
         this.remainSeats = remainSeats;
+    }
+
+    public CoursePathView getPath() {
+        return path;
+    }
+
+    public void setPath(CoursePathView path) {
+        this.path = path;
     }
 }

@@ -19,6 +19,15 @@ public interface EnrollmentMapper {
 
     List<Enrollment> listByCourseId(@Param("courseId") Long courseId);
 
+    /**
+     * 按学员取原始约课记录（不 JOIN、不改写 status）。
+     * 路径解析专用：status=NULL 的历史记录必须原样保留为「状态缺失」，不能丢也不能当成已完成。
+     */
+    List<Enrollment> listPlainByStudentId(@Param("studentId") Long studentId);
+
+    /** 全量原始约课记录：一次查看某学员全部路径时与关系表一起批量读，查询次数为常数。 */
+    List<Enrollment> listAllPlain();
+
     int countByStudentAndCourse(@Param("studentId") Long studentId,
                                 @Param("courseId") Long courseId);
 

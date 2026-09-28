@@ -77,8 +77,15 @@ export const serviceApi = {
 export const courseApi = {
   options: () => http.get('/options'),
   students: () => http.get('/students'),
-  courses: () => http.get('/courses'),
-  courseDetail: (id) => http.get(`/courses/${id}/detail`),
+  // 带 studentId 时列表每门课内嵌该学员路径结论；probe 用于读取 X-Query-Count
+  courses: (studentId, probe = false) =>
+    http.get('/courses', { params: clean({ studentId }, probe) }),
+  coursePaths: (studentId, probe = false) =>
+    http.get('/courses/paths', { params: clean({ studentId }, probe) }),
+  coursePath: (id, studentId) =>
+    http.get(`/courses/${id}/path`, { params: clean({ studentId }) }),
+  courseDetail: (id, studentId, probe = false) =>
+    http.get(`/courses/${id}/detail`, { params: clean({ studentId }, probe) }),
   enrollments: (params) => http.get('/enrollments', { params: clean(params) }),
   enroll: (data) => http.post('/enrollments', data),
   batchEnroll: (data) => http.post('/enrollments/batch', data)

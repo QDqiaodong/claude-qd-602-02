@@ -143,9 +143,28 @@ public final class MusicDict {
     private static final Map<String, String> ENROLLMENT_STATUS = new LinkedHashMap<>();
 
     static {
-        ENROLLMENT_STATUS.put("NORMAL", "正常");
-        ENROLLMENT_STATUS.put("CANCELED", "已退课");
+        ENROLLMENT_STATUS.put("COMPLETED", "已完成");
+        ENROLLMENT_STATUS.put("NORMAL", "正在学习");
+        ENROLLMENT_STATUS.put("CANCELED", "已取消");
     }
+
+    // ---------------- 课程先修 ----------------
+    private static final Map<String, String> PREREQ_MATCH_MODE = new LinkedHashMap<>();
+
+    static {
+        PREREQ_MATCH_MODE.put("ALL", "全部完成");
+        PREREQ_MATCH_MODE.put("ANY", "完成任意一门");
+    }
+
+    /**
+     * 约课记录的路径状态（比库内 status 多一个 LEGACY_MISSING：
+     * 库内 status 为 NULL/未知码的旧记录照常展示，但不能解锁任何课程）。
+     */
+    public static final String LEARNING_COMPLETED = "COMPLETED";
+    public static final String LEARNING_IN_PROGRESS = "NORMAL";
+    public static final String LEARNING_CANCELED = "CANCELED";
+    public static final String LEARNING_NONE = "NONE";
+    public static final String LEARNING_MISSING = "LEGACY_MISSING";
 
     /** 一键多科报名时，每门课默认消耗的课时 */
     public static final int DEFAULT_BATCH_LESSONS = 2;
@@ -278,6 +297,38 @@ public final class MusicDict {
         return status == null ? "" : ENROLLMENT_STATUS.getOrDefault(status, status);
     }
 
+    /** 路径视角的学习状态文案（含历史状态缺失占位）。 */
+    public static String learningStateName(String state) {
+        if (state == null) {
+            return "";
+        }
+        return switch (state) {
+            case LEARNING_COMPLETED -> "已完成";
+            case LEARNING_IN_PROGRESS -> "正在学习";
+            case LEARNING_CANCELED -> "已取消";
+            case LEARNING_MISSING -> "状态缺失";
+            case LEARNING_NONE -> "未学习";
+            default -> state;
+        };
+    }
+
+    /** 只有明确的已完成记录能解锁后续课程；在学/取消/状态缺失都不算。 */
+    public static boolean isCompletedStatus(String status) {
+        return LEARNING_COMPLETED.equals(status);
+    }
+
+    /** 库内 status（可能为 NULL）归一为路径视角的学习状态。 */
+    public static String toLearningState(String status) {
+        if (status == null) {
+            return LEARNING_MISSING;
+        }
+        return ENROLLMENT_STATUS.containsKey(status) ? status : LEARNING_MISSING;
+    }
+
+    public static String prereqMatchModeName(String mode) {
+        return mode == null ? "" : PREREQ_MATCH_MODE.getOrDefault(mode, mode);
+    }
+
     /** 供前端下拉直接使用的选项列表 */
     public static List<Map<String, String>> options(Map<String, String> source) {
         return source.entrySet().stream()
@@ -315,5 +366,9 @@ public final class MusicDict {
 
     public static List<Map<String, String>> courseStatusOptions() {
         return options(COURSE_STATUS);
+    }
+
+    public static List<Map<String, String>> prereqMatchModeOptions() {
+        return options(PREREQ_MATCH_MODE);
     }
 }

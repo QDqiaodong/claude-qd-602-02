@@ -3,6 +3,8 @@ package com.music.instrument.domain;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
+import com.music.instrument.dto.view.CoursePathView;
+
 /**
  * 课程实体。
  */
@@ -19,6 +21,9 @@ public class LessonCourse {
     private String status;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+
+    /** 非持久化：列表在指定学员时内嵌的路径结论（详情/单查共用同一解析，保证一致）。 */
+    private transient CoursePathView path;
 
     public Long getId() {
         return id;
@@ -106,5 +111,13 @@ public class LessonCourse {
 
     public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    public CoursePathView getPath() {
+        return path;
+    }
+
+    public void setPath(CoursePathView path) {
+        this.path = path;
     }
 }
